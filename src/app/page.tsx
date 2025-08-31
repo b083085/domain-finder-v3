@@ -55,7 +55,7 @@ export default function Home() {
               <button
                 onClick={handleAnalyze}
                 disabled={isAnalyzing}
-                className="px-6 py-3 bg-[#A07A00] text-white font-semibold rounded-lg hover:bg-[#8B6A00] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                className="px-6 py-3 bg-[#eab308] text-black font-semibold rounded-lg hover:bg-[#fbbf24] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {isAnalyzing ? 'Analyzing...' : 'Analyze Competitors'}
               </button>
@@ -148,7 +148,7 @@ export default function Home() {
                 ))}
               </div>
               <div className="text-center mt-6">
-                <button className="px-6 py-3 bg-[#A07A00] text-white font-semibold rounded-lg hover:bg-[#8B6A00]">
+                <button className="px-6 py-3 bg-[#eab308] text-black font-semibold rounded-lg hover:bg-[#fbbf24]">
                   + Generate 5 More Options
                 </button>
               </div>
