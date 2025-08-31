@@ -1,24 +1,59 @@
 'use client';
 
 import { useState } from 'react';
+import { niche_variations, PRIVATE_ECOM_STORES } from './niches';
 
 export default function Home() {
-  const [niche, setNiche] = useState('backyard');
+  const [niche, setNiche] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [topStores, setTopStores] = useState<{domain: string}[]>([]);
+  const [selectedNiche, setSelectedNiche] = useState<string>('backyard');
+
+  // Function to search competitors based on niche
+  const searchCompetitors = (searchNiche: string) => {
+    const normalizedNiche = searchNiche.toLowerCase().trim();
+    
+    // First, check if niche is in niche_variations
+    if (normalizedNiche in niche_variations) {
+      const mappedNiche = niche_variations[normalizedNiche as keyof typeof niche_variations];
+      if (mappedNiche in PRIVATE_ECOM_STORES) {
+        setSelectedNiche(mappedNiche);
+        setTopStores(PRIVATE_ECOM_STORES[mappedNiche as keyof typeof PRIVATE_ECOM_STORES]);
+        return;
+      }
+    }
+    
+    // If not found in niche_variations, check if niche is directly in PRIVATE_ECOM_STORES
+    if (normalizedNiche in PRIVATE_ECOM_STORES) {
+      setSelectedNiche(normalizedNiche);
+      setTopStores(PRIVATE_ECOM_STORES[normalizedNiche as keyof typeof PRIVATE_ECOM_STORES]);
+      return;
+    }
+    
+    // If still not found, check if any niche in PRIVATE_ECOM_STORES contains the search term
+    for (const [nicheKey, stores] of Object.entries(PRIVATE_ECOM_STORES)) {
+      if (nicheKey.toLowerCase().includes(normalizedNiche) || 
+          normalizedNiche.includes(nicheKey.toLowerCase())) {
+        setSelectedNiche(nicheKey);
+        setTopStores(stores);
+        return;
+      }
+    }
+    
+    // If no matches found, set default backyard stores
+    setSelectedNiche('backyard');
+    setTopStores(PRIVATE_ECOM_STORES['backyard']);
+  };
 
   const handleAnalyze = () => {
     setIsAnalyzing(true);
+    // Search for competitors based on the entered niche
+    searchCompetitors(niche);
+    
     // Simulate analysis delay
     setTimeout(() => setIsAnalyzing(false), 1000);
   };
 
-  const topStores = [
-    'bbqguys.com',
-    'firepitsdirect.com',
-    'firepitsurplus.com',
-    'theporchswingcompany.com',
-    'allthingsbarbecue.com'
-  ];
 
   const otherOptions = [
     'porchconnect.com',
@@ -49,6 +84,11 @@ export default function Home() {
                 type="text"
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAnalyze();
+                  }
+                }}
                 className="flex-1 px-4 py-3 border border-[#FACC15] rounded-lg text-lg bg-[#1A1A1A] text-white focus:outline-none focus:ring-2 focus:ring-[#FACC15] placeholder-[#A0A0A0]"
                 placeholder="Enter your niche"
               />
@@ -62,59 +102,63 @@ export default function Home() {
             </div>
 
             {/* Top E-commerce Stores Section */}
-            <div className="bg-[#333333] rounded-xl p-6">
-              <h2 className="text-2xl font-bold text-[#FACC15] mb-4">
-                Top Private E-commerce Stores in "{niche}"
-              </h2>
-              <ol className="space-y-2">
-                {topStores.map((store, index) => (
-                  <li key={index} className="bg-[#1A1A1A] p-3 rounded-lg border border-[#333333]">
-                    <a
-                      href={`https://${store}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#FACC15] hover:underline text-lg"
-                    >
-                      {index + 1}. {store}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {/* Two Column Layout for Patterns and Recommendations */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Domain Patterns Found Section */}
-              <div className="bg-[#333333] border border-[#FACC15] rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-6 h-6 bg-[#FACC15] rounded"></div>
-                  <h3 className="text-xl font-semibold text-[#FACC15]">Domain Patterns Found:</h3>
+            {topStores.length > 0 && (
+              <>
+                <div className="bg-[#333333] rounded-xl p-6">
+                  <h2 className="text-2xl font-bold text-[#FACC15] mb-4">
+                    Top Private E-commerce Stores in "{selectedNiche}"
+                  </h2>
+                  <ol className="space-y-2">
+                    {topStores.map((store, index) => (
+                      <li key={index} className="bg-[#1A1A1A] p-3 rounded-lg border border-[#333333]">
+                        <a
+                          href={`https://${store.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#FACC15] hover:underline text-lg"
+                        >
+                          {index + 1}. {store.domain}
+                        </a>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
-                <ul className="space-y-2 text-[#A0A0A0]">
-                  <li>• Length: 7-20 characters (average: 14)</li>
-                  <li>• Structure: Most use 3-word compound domains</li>
-                  <li>• Industry terms: bbq, fire, pits, firepit</li>
-                  <li>• Domain structures: niche word + business term, multi-word phrase, three-word combination</li>
-                  <li>• Brand approach: compound and industry-specific</li>
-                </ul>
-              </div>
 
-              {/* Recommendations for Your Domain Section */}
-              <div className="bg-[#333333] border border-[#FACC15] rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-6 h-6 bg-[#FACC15] rounded-full"></div>
-                  <h3 className="text-xl font-semibold text-[#FACC15]">Recommendations for Your Domain:</h3>
+                {/* Two Column Layout for Patterns and Recommendations */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Domain Patterns Found Section */}
+                  <div className="bg-[#333333] border border-[#FACC15] rounded-xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-6 h-6 bg-[#FACC15] rounded"></div>
+                      <h3 className="text-xl font-semibold text-[#FACC15]">Domain Patterns Found:</h3>
+                    </div>
+                    <ul className="space-y-2 text-[#A0A0A0]">
+                      <li>• Length: 7-20 characters (average: 14)</li>
+                      <li>• Structure: Most use 3-word compound domains</li>
+                      <li>• Industry terms: bbq, fire, pits, firepit</li>
+                      <li>• Domain structures: niche word + business term, multi-word phrase, three-word combination</li>
+                      <li>• Brand approach: compound and industry-specific</li>
+                    </ul>
+                  </div>
+
+                  {/* Recommendations for Your Domain Section */}
+                  <div className="bg-[#333333] border border-[#FACC15] rounded-xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-6 h-6 bg-[#FACC15] rounded-full"></div>
+                      <h3 className="text-xl font-semibold text-[#FACC15]">Recommendations for Your Domain:</h3>
+                    </div>
+                    <ul className="space-y-2 text-[#A0A0A0]">
+                      <li>• Keep domain length between 7-20 characters (average: 14)</li>
+                      <li>• Most successful stores use 3-word domains</li>
+                      <li>• Consider industry-specific terms: bbq, fire, pits</li>
+                      <li>• Popular structure: niche word + business term</li>
+                      <li>• Brand styles: compound and industry-specific names work well</li>
+                      <li>• Avoid using numbers in your domain</li>
+                    </ul>
+                  </div>
                 </div>
-                <ul className="space-y-2 text-[#A0A0A0]">
-                  <li>• Keep domain length between 7-20 characters (average: 14)</li>
-                  <li>• Most successful stores use 3-word domains</li>
-                  <li>• Consider industry-specific terms: bbq, fire, pits</li>
-                  <li>• Popular structure: niche word + business term</li>
-                  <li>• Brand styles: compound and industry-specific names work well</li>
-                  <li>• Avoid using numbers in your domain</li>
-                </ul>
-              </div>
-            </div>
+              </>
+            )}
 
             {/* Our Recommendation Section */}
             <div className="bg-[#333333] border-2 border-[#FACC15] rounded-xl p-6">
