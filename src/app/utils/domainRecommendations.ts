@@ -1,4 +1,4 @@
-import { DomainPatterns, generateRecommendations } from './domainAnalyzer';
+import { DomainPatterns } from './domainAnalyzer';
 
 export interface DomainRecommendation {
     domain: string;
@@ -11,13 +11,13 @@ export interface DomainRecommendation {
 /**
  * Generate domain suggestions based on analyzed patterns
  */
-export const generateDomainSuggestions = (patterns: DomainPatterns, niche: string): string[] => {
+export const generateDomainSuggestions = (patterns: DomainPatterns): string[] => {
     const suggestions: string[] = [];
     const nicheKeywords = patterns.nicheKeywords;
     const industryTerms = patterns.industryTerms;
     const suffixes = patterns.suffixes;
     const prefixes = patterns.prefixes;
-
+    
     // Generate combinations based on patterns
     if (nicheKeywords.length > 0 && suffixes.length > 0) {
         // Niche keyword + suffix combinations
@@ -272,7 +272,7 @@ Return ONLY a JSON array of domain names, no code fences, no markdown, no explan
         } catch (parseError) {
             console.error('Failed to parse OpenAI response:', parseError);
             // Fallback to basic suggestions
-            return generateDomainSuggestions(patterns, niche);
+            return generateDomainSuggestions(patterns);
         }
 
         // Ensure we have exactly 15 unique suggestions
@@ -280,7 +280,7 @@ Return ONLY a JSON array of domain names, no code fences, no markdown, no explan
 
         // If we don't have enough, fill with basic suggestions
         if (uniqueSuggestions.length < 15) {
-            const basicSuggestions = generateDomainSuggestions(patterns, niche);
+            const basicSuggestions = generateDomainSuggestions(patterns);
             const additionalSuggestions = basicSuggestions.filter(s => !uniqueSuggestions.includes(s));
             uniqueSuggestions.push(...additionalSuggestions.slice(0, 15 - uniqueSuggestions.length));
         }
@@ -289,7 +289,7 @@ Return ONLY a JSON array of domain names, no code fences, no markdown, no explan
     } catch (error) {
         console.error('Error generating unique domain suggestions:', error);
         // Fallback to basic suggestions
-        return generateDomainSuggestions(patterns, niche);
+        return generateDomainSuggestions(patterns);
     }
 };
 

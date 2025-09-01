@@ -1,3 +1,4 @@
+
 // Type definitions
 export interface DomainPatterns {
   averageLength: number;
@@ -102,7 +103,7 @@ export const splitDomainIntoWords = (domainName: string): string[] => {
 };
 
 // Analyze domain structure
-export const analyzeDomainStructureImproved = (words: string[], nicheKeywords: string[]): string | null => {
+export const analyzeDomainStructureImproved = (words: string[]): string | null => {
   if (words.length === 1) {
     return "single word";
   } else if (words.length === 2) {
@@ -191,7 +192,7 @@ export const analyzeDomainPatterns = (domains: string[], niche: string): DomainP
     }
 
     // Analyze structure
-    const structure = analyzeDomainStructureImproved(words, nicheRelatedWords);
+    const structure = analyzeDomainStructureImproved(words);
     if (structure) {
       patterns.structurePatterns.push(structure);
     }
@@ -242,13 +243,10 @@ export const analyzeDomainPatterns = (domains: string[], niche: string): DomainP
 
   // Most common word count
   if (Object.keys(patterns.wordCount).length > 0) {
-    patterns.mostCommonWordCount = parseInt(
-      Object.entries(patterns.wordCount)
-        .reduce((a, b) => patterns.wordCount[a[0]] > patterns.wordCount[b[0]] ? a : b)[0]
-    );
+    const mostCommon = Object.entries(patterns.wordCount)
+      .reduce((a, b) => a[1] > b[1] ? a : b);
+    patterns.mostCommonWordCount = parseInt(mostCommon[0]);
   }
-
-  // Clean up structure patterns
   patterns.structurePatterns = [...new Set(patterns.structurePatterns)].slice(0, 3);
 
   // Analyze suffixes and prefixes
@@ -325,10 +323,9 @@ export const hasNumbers = (domain: string): boolean => {
   return /\d/.test(domain);
 };
 
-export const getDomainStructure = (domain: string, niche: string): string | null => {
+export const getDomainStructure = (domain: string): string | null => {
   const words = getDomainWords(domain);
-  const nicheKeywords = extractNicheKeywords(niche);
-  return analyzeDomainStructureImproved(words, nicheKeywords);
+  return analyzeDomainStructureImproved(words);
 };
 
 // Helper to format patterns for display
@@ -407,4 +404,4 @@ export const generateRecommendations = (niche: string, patterns: DomainPatterns)
   }
 
   return recommendations;
-};
+}

@@ -1,4 +1,3 @@
-import { DomainPatterns } from './domainAnalyzer';
 
 export interface GeneratedDomain {
   domain: string;

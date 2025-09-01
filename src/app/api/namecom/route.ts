@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     try {
       const body = await request.json();
       domain = body?.domain || null;
-    } catch (e) {
+    } catch {
       // Ignore JSON parse errors here
     }
 

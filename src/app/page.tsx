@@ -113,7 +113,7 @@ export default function Home() {
               <>
                 {!noStores && (<div className="bg-[#333333] rounded-xl p-6">
                   <h2 className="text-2xl font-bold text-[#FACC15] mb-4">
-                    Top Private E-commerce Stores in "{selectedNiche}"
+                    {`Top Private E-commerce Stores in ${selectedNiche}`}
                   </h2>
                   <ol className="space-y-2">
                     {topStores.map((store, index) => (
