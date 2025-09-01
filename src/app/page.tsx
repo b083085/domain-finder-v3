@@ -1,43 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { niche_variations, PRIVATE_ECOM_STORES } from './niches';
-import { analyzeDomainPatterns, type DomainPatterns, generateRecommendations } from './utils/domainAnalyzer';
+import { analyzeDomainPatterns, type DomainPatterns } from './utils/domainAnalyzer';
+import { getTopStoresForNiche, extractDomainNames } from './utils/nicheHelper';
 import PatternsDisplay from './components/PatternsDisplay';
 import RecommendationsDisplay from './components/RecommendationsDisplay';
-
-// Add this function
-const getTopStoresForNiche = (searchNiche: string): { domain: string }[] => {
-  const normalizedNiche = searchNiche.toLowerCase().trim();
-
-  if (normalizedNiche in niche_variations) {
-    const mappedNiche = niche_variations[normalizedNiche as keyof typeof niche_variations];
-    if (mappedNiche in PRIVATE_ECOM_STORES) {
-      return PRIVATE_ECOM_STORES[mappedNiche as keyof typeof PRIVATE_ECOM_STORES];
-    }
-  }
-
-  if (normalizedNiche in PRIVATE_ECOM_STORES) {
-    return PRIVATE_ECOM_STORES[normalizedNiche as keyof typeof PRIVATE_ECOM_STORES];
-  }
-
-  for (const [nicheKey, stores] of Object.entries(PRIVATE_ECOM_STORES)) {
-    if (nicheKey.toLowerCase().includes(normalizedNiche) ||
-      normalizedNiche.includes(nicheKey.toLowerCase())) {
-      return stores;
-    }
-  }
-
-  return PRIVATE_ECOM_STORES['backyard'];
-};
 
 export default function Home() {
   const [niche, setNiche] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [topStores, setTopStores] = useState<{ domain: string }[]>([]);
   const [selectedNiche, setSelectedNiche] = useState<string>('backyard');
-  const [isGeneratingPatterns, setIsGeneratingPatterns] = useState(false);
-  const [domainPatternsAnalysis, setDomainPatternsAnalysis] = useState<string[]>([]);
   const [domainPatterns, setDomainPatterns] = useState<DomainPatterns>();
 
   // Function to analyze domain patterns
@@ -51,8 +24,7 @@ export default function Home() {
       const stores = getTopStoresForNiche(niche);
       setTopStores(stores);
 
-      const domainList = stores.map(store => store.domain);
-
+      const domainList = extractDomainNames(stores);
       const patterns = analyzeDomainPatterns(domainList, niche);
       setDomainPatterns(patterns);
       
@@ -66,7 +38,6 @@ export default function Home() {
 
   // Function to generate OpenAI content for patterns
   const generateOpenAIPatterns = async (domains:string[]) => {
-    setIsGeneratingPatterns(true);
 
     try {
       const prompt = `Analyze the domain name patterns like average length,
@@ -96,56 +67,10 @@ export default function Home() {
 
       const data = await response.json();
       const aiAnalysis = data.analysis;
-      setDomainPatternsAnalysis(JSON.parse(aiAnalysis));
     } catch (error) {
       console.error('Error generating OpenAI patterns:', error);
-      setDomainPatternsAnalysis([]);
     } finally {
-      setIsGeneratingPatterns(false);
     }
-  };
-
-  // Function to search competitors based on niche
-  const searchCompetitors = (searchNiche: string) => {
-    const normalizedNiche = searchNiche.toLowerCase().trim();
-
-    // First, check if niche is in niche_variations
-    if (normalizedNiche in niche_variations) {
-      const mappedNiche = niche_variations[normalizedNiche as keyof typeof niche_variations];
-      if (mappedNiche in PRIVATE_ECOM_STORES) {
-        setSelectedNiche(mappedNiche);
-        const stores = PRIVATE_ECOM_STORES[mappedNiche as keyof typeof PRIVATE_ECOM_STORES];
-        setTopStores(stores);
-        analyzeDomainPatterns(stores.map(store => store.domain), mappedNiche);
-        return;
-      }
-    }
-
-    // If not found in niche_variations, check if niche is directly in PRIVATE_ECOM_STORES
-    if (normalizedNiche in PRIVATE_ECOM_STORES) {
-      setSelectedNiche(normalizedNiche);
-      const stores = PRIVATE_ECOM_STORES[normalizedNiche as keyof typeof PRIVATE_ECOM_STORES];
-      setTopStores(stores);
-      analyzeDomainPatterns(stores.map(store => store.domain), normalizedNiche);
-      return;
-    }
-
-    // If still not found, check if any niche in PRIVATE_ECOM_STORES contains the search term
-    for (const [nicheKey, stores] of Object.entries(PRIVATE_ECOM_STORES)) {
-      if (nicheKey.toLowerCase().includes(normalizedNiche) ||
-        normalizedNiche.includes(nicheKey.toLowerCase())) {
-        setSelectedNiche(nicheKey);
-        setTopStores(stores);
-        analyzeDomainPatterns(stores.map(store => store.domain), nicheKey);
-        return;
-      }
-    }
-
-    // If no matches found, set default backyard stores
-    setSelectedNiche('backyard');
-    const stores = PRIVATE_ECOM_STORES['backyard'];
-    setTopStores(stores);
-    analyzeDomainPatterns(stores.map(store => store.domain), 'backyard');
   };
 
   const otherOptions = [
