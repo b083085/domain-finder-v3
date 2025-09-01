@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { analyzeDomainPatterns, type DomainPatterns } from './utils/domainAnalyzer';
-import { getTopStoresForNiche, extractDomainNames, getNicheKeywords } from './utils/nicheHelper';
+import { getTopStoresForNiche, extractDomainNames, getNicheKeywords, extractIndustryTermsFromDomains } from './utils/nicheHelper';
 import PatternsDisplay from './components/PatternsDisplay';
 import RecommendationsDisplay from './components/RecommendationsDisplay';
 import DomainRecommendations from './components/DomainRecommendations';
@@ -45,16 +45,20 @@ export default function Home() {
         setNoStores(true);
 
         getNicheKeywords(niche).then(keywords => {
-          console.log('Niche keywords:', keywords);
           // Generate unique domain list using OpenAI
           generateUniqueDomainList(niche, keywords).then(domainList => {
             const patterns = analyzeDomainPatterns(domainList, niche);
-            setDomainPatterns(patterns);
-
-            // Generate domain recommendations
-            generateDomainRecommendations(patterns, niche, []).then(recommendations => {
-              // Handle the recommendations here
-              console.log('Domain recommendations:', recommendations);
+            extractIndustryTermsFromDomains(domainList, niche).then(industryTerms => {
+              console.log('Industry terms from generated domains:', industryTerms);
+              patterns.industryTerms = industryTerms;
+              patterns.nicheKeywords = keywords;
+              setDomainPatterns(patterns);
+              
+              // Generate domain recommendations
+              generateDomainRecommendations(patterns, niche, []).then(recommendations => {
+                // Handle the recommendations here
+                console.log('Domain recommendations:', recommendations);
+              });
             });
           });
         });

@@ -145,7 +145,6 @@ const calculateBasicScore = (domain: string, patterns: DomainPatterns): number =
  */
 export const checkDomainAvailability = async (domains: string[], niche: string, patterns: DomainPatterns): Promise<DomainRecommendation[]> => {
     const results: DomainRecommendation[] = [];
-    console.log(domains);
 
     for (const domain of domains) {
         try {
@@ -297,10 +296,9 @@ Return ONLY a JSON array of domain names, no code fences, no markdown, no explan
 /**
  * Main function to generate domain recommendations
  */
-export const generateDomainRecommendations = async (patterns: DomainPatterns, niche: string, domains: string[]): Promise<DomainRecommendation[]> => {
+export const generateDomainRecommendations = async (patterns: DomainPatterns, niche: string, excludeDomains: string[]): Promise<DomainRecommendation[]> => {
     try {
-        const suggestions = await generateUniqueDomainSuggestions(patterns, niche, domains);
-        console.log('Generated suggestions:', suggestions);
+        const suggestions = await generateUniqueDomainSuggestions(patterns, niche, excludeDomains);
 
         const availableDomains = await checkDomainAvailability(suggestions, niche, patterns);
 
@@ -314,7 +312,7 @@ export const generateDomainRecommendations = async (patterns: DomainPatterns, ni
             if (!a.available && b.available) return 1;
             return 0;
         });
-        console.log(sortedAvailableDomains);
+        console.log('Available Domains:',sortedAvailableDomains);
         return sortedAvailableDomains;
     } catch (error) {
         console.error('Error generating domain recommendations:', error);

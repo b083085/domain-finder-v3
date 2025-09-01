@@ -171,3 +171,121 @@ const generateBasicNicheKeywords = (niche: string): string[] => {
   
   return [...new Set(keywords)].slice(0, 10);
 };
+
+/**
+ * Extract industry terms from domain list using OpenAI
+ */
+export const extractIndustryTermsFromDomains = async (domainList: string[], niche: string): Promise<string[]> => {
+  try {
+    const prompt = `Analyze these domain names from the "${niche}" industry and extract exactly 10 industry-specific terms that are:
+
+Requirements:
+- Extract exactly 10 industry terms
+- Each term must be a full word (not partial words or abbreviations)
+- Terms should be relevant to the ${niche} industry
+- Terms should be commonly used in business and marketing for this niche
+- Terms should be single words or short phrases (max 3 words)
+- Focus on industry-specific terminology found in the domain names
+- Avoid overly generic terms like "store", "shop", "online"
+- Make them actionable and useful for domain naming
+
+Domain names to analyze:
+${domainList.join(', ')}
+
+Consider these aspects for ${niche}:
+- Industry-specific terminology found in the domains
+- Common business terms in ${niche}
+- Product or service related terms
+- Customer behavior and needs
+- Market trends and popular terms
+
+Return ONLY a JSON array of lower case industry terms, no code fences, no markdown, no explanations or additional text:
+["term1", "term2", ...]`;
+
+    const response = await fetch('/api/openai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiResponse = data.analysis;
+    
+    // Parse the JSON response
+    let industryTerms: string[] = [];
+    try {
+      industryTerms = JSON.parse(aiResponse);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', parseError);
+      // Fallback to basic industry terms
+      return generateBasicIndustryTerms(domainList, niche);
+    }
+
+    // Ensure we have unique terms and they are full words
+    const uniqueTerms = [...new Set(industryTerms)]
+      .filter(term => term && term.trim().length > 0)
+      .slice(0, 10);
+    
+    // If we don't have enough, fill with basic terms
+    if (uniqueTerms.length < 10) {
+      const basicTerms = generateBasicIndustryTerms(domainList, niche);
+      const additionalTerms = basicTerms.filter(t => !uniqueTerms.includes(t));
+      uniqueTerms.push(...additionalTerms.slice(0, 10 - uniqueTerms.length));
+    }
+
+    return uniqueTerms;
+  } catch (error) {
+    console.error('Error extracting industry terms from domains:', error);
+    // Fallback to basic industry terms
+    return generateBasicIndustryTerms(domainList, niche);
+  }
+};
+
+/**
+ * Generate basic industry terms as fallback
+ */
+const generateBasicIndustryTerms = (domainList: string[], niche: string): string[] => {
+  const terms: string[] = [];
+  const nicheLower = niche.toLowerCase();
+  
+  // Extract common words from domain names
+  const allWords = domainList.flatMap(domain => {
+    const name = domain.replace('.com', '').toLowerCase();
+    return name.split(/[^a-z]+/).filter(word => word.length > 2);
+  });
+  
+  // Count word frequency
+  const wordCount: Record<string, number> = {};
+  allWords.forEach(word => {
+    wordCount[word] = (wordCount[word] || 0) + 1;
+  });
+  
+  // Get most common words
+  const commonWords = Object.entries(wordCount)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 15)
+    .map(([word]) => word);
+  
+  // Filter out generic terms
+  const genericTerms = ['store', 'shop', 'online', 'web', 'site', 'com', 'net', 'org'];
+  const industryTerms = commonWords.filter(word => !genericTerms.includes(word));
+  
+  // Add niche-specific terms
+  if (nicheLower.includes('fitness')) {
+    terms.push('gym', 'workout', 'training', 'health', 'strength');
+  } else if (nicheLower.includes('tech')) {
+    terms.push('digital', 'online', 'web', 'app', 'tech');
+  } else if (nicheLower.includes('fashion')) {
+    terms.push('style', 'trend', 'wear', 'outfit', 'fashion');
+  }
+  
+  return [...new Set([...industryTerms, ...terms])].slice(0, 10);
+};
