@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DomainPatterns } from '../utils/domainAnalyzer';
 import { generateDomainRecommendations, DomainRecommendation } from '../utils/domainRecommendations';
 
@@ -14,19 +14,15 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Use ref to store patterns to avoid dependency issues
-  const patternsRef = useRef(patterns);
-  patternsRef.current = patterns;
-
   // Memoize the fetch function to prevent unnecessary re-renders
-  const fetchDomainRecommendations = useCallback(async () => {
-    if (!patternsRef.current && !niche) return;
+  const fetchDomainRecommendations = async () => {
+    if (!niche && !patterns) return;
     
     setIsLoading(true);
     setError(null);
     
     try {
-      const recommendations = await generateDomainRecommendations(patternsRef.current, niche, []);
+      const recommendations = await generateDomainRecommendations(patterns, niche, []);
       setRecommendations(recommendations);
       setOtherOptions(recommendations.slice(1, 6) ?? []);
     } catch (err) {
@@ -35,12 +31,12 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
     } finally {
       setIsLoading(false);
     }
-  }, [niche]); // Only depend on niche
+  }; // Only depend on niche
 
   // Only run effect when niche changes
   useEffect(() => {
     fetchDomainRecommendations();
-  }, [fetchDomainRecommendations]);
+  }, [niche, patterns]);
 
   // Function to generate more domain options
   const handleGenerateMoreOptions = async () => {

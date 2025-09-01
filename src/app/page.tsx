@@ -53,12 +53,6 @@ export default function Home() {
     const patterns = await analyzeDomainPatterns(domainList, niche);
 
     setDomainPatterns(patterns);
-
-    // Generate domain recommendations
-    generateDomainRecommendations(patterns, niche, []).then(recommendations => {
-      // Handle the recommendations here
-      console.log('Domain recommendations:', recommendations);
-    });
   }
 
   return (
@@ -101,7 +95,7 @@ export default function Home() {
             {/* Top E-commerce Stores Section */}
             {topStores.length > 0 && (
               <>
-                <div className="bg-[#333333] rounded-xl p-6">
+                {!isAnalyzing && (<div className="bg-[#333333] rounded-xl p-6">
                   <h2 className="text-2xl font-bold text-[#FACC15] mb-4">
                     {`Top Private E-commerce Stores in ${selectedNiche}`}
                   </h2>
@@ -119,15 +113,15 @@ export default function Home() {
                       </li>
                     ))}
                   </ol>
-                </div>
+                </div>)}
 
                 {/* Domain Patterns Found Section - Full Width */}
-                {domainPatterns && (
+                {domainPatterns && !isAnalyzing && (
                   <PatternsDisplay patterns={domainPatterns} title="Domain Patterns Found" />
                 )}
 
                 {/* Recommendations for Your Domain Section */}
-                {domainPatterns && (
+                {domainPatterns && !isAnalyzing && (
                   <RecommendationsDisplay
                     patterns={domainPatterns}
                     niche={selectedNiche}
@@ -136,7 +130,7 @@ export default function Home() {
                 )}
 
                 {/* Our Recommendation Section */}
-                {domainPatterns && (
+                {domainPatterns && !isAnalyzing && (
                   <DomainRecommendations patterns={domainPatterns} niche={selectedNiche} />
                 )}
               </>
