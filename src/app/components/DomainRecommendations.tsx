@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DomainPatterns } from '../utils/domainAnalyzer';
 import { generateDomainRecommendations, DomainRecommendation } from '../utils/domainRecommendations';
 
@@ -14,34 +14,37 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (niche) {
-      setIsLoading(true);
-      setError(null);
-      
-      generateDomainRecommendations(patterns, niche, [])
-        .then(recommendations => {
-          setRecommendations(recommendations);
-          // Set other options starting from 2nd item
-          setOtherOptions(recommendations.slice(1, 6));
-        })
-        .catch(err => {
-          console.error('Error generating recommendations:', err);
-          setError('Failed to generate recommendations');
-        })
-        .finally(() => setIsLoading(false));
+  // Memoize the fetch function to prevent unnecessary re-renders
+  const fetchDomainRecommendations = useCallback(async () => {
+    if (!patterns && !niche) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const recommendations = await generateDomainRecommendations(patterns, niche, []);
+      setRecommendations(recommendations);
+      setOtherOptions(recommendations.slice(1, 6));
+    } catch (err) {
+      console.error('Error generating recommendations:', err);
+      setError('Failed to generate recommendations');
+    } finally {
+      setIsLoading(false);
     }
-  }, [niche]);
+  }, [patterns, niche]);
+
+  // Only run effect when patterns or niche actually change
+  useEffect(() => {
+    fetchDomainRecommendations();
+  }, [fetchDomainRecommendations]);
 
   // Function to generate more domain options
   const handleGenerateMoreOptions = async () => {
     setIsGeneratingMore(true);
     
     try {
-      // Generate new recommendations
       const newRecommendations = await generateDomainRecommendations(patterns, niche, otherOptions.map(option => option.domain));
       
-      // Take only top 5 based on quality score
       const top5Options = newRecommendations
         .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
         .slice(0, 5);
@@ -54,6 +57,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
     }
   };
 
+  // Early return for loading state
   if (isLoading) {
     return (
       <div className="bg-[#333333] border-2 border-[#FACC15] rounded-xl p-6">
@@ -68,6 +72,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
     );
   }
 
+  // Early return for error state
   if (error) {
     return (
       <div className="bg-[#333333] border-2 border-[#FACC15] rounded-xl p-6">
@@ -81,6 +86,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
     );
   }
 
+  // Early return if no recommendations
   if (recommendations.length === 0) {
     return null;
   }
@@ -118,7 +124,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
         <h3 className="text-xl font-semibold text-[#FACC15] mb-4">Other options:</h3>
         <div className="space-y-3">
           {otherOptions.map((option, index) => (
-            <div key={index} className="flex justify-between items-center p-4 bg-[#1A1A1A] border border-[#333333] rounded-lg">
+            <div key={`${option.domain}-${index}`} className="flex justify-between items-center p-4 bg-[#1A1A1A] border border-[#333333] rounded-lg">
               <div className="flex items-center gap-3">
                 <span className="text-lg font-medium text-white">{option.domain}</span>
                 <div className={`w-3 h-3 rounded-full ${option.available ? 'bg-green-500' : 'bg-red-500'}`}></div>
