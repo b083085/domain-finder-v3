@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { analyzeDomainPatterns, type DomainPatterns } from './utils/domainAnalyzer';
-import { getTopStoresForNiche, extractDomainNames, getNicheKeywords, extractIndustryTermsFromDomains, Store } from './utils/nicheHelper';
+import { getTopStoresForNiche, extractDomainNames, getNicheKeywords, Store } from './utils/nicheHelper';
 import PatternsDisplay from './components/PatternsDisplay';
 import RecommendationsDisplay from './components/RecommendationsDisplay';
 import DomainRecommendations from './components/DomainRecommendations';
 import { generateUniqueDomainList } from './utils/domainGenerator';
-import UnverifiedCompetitorsMessage from './components/UnverifiedCompetitorsMessage';
 import { generateDomainRecommendations } from './utils/domainRecommendations';
 import Loader from './components/Loader';
 
@@ -19,7 +18,7 @@ export default function Home() {
   const [domainPatterns, setDomainPatterns] = useState<DomainPatterns>();
 
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!niche.trim()) return;
 
     setIsAnalyzing(true);
@@ -28,18 +27,16 @@ export default function Home() {
     try {
       const stores = getTopStoresForNiche(niche);
       if (stores && stores.length > 0) {
-        analyzeCompetitors(stores);
+        await analyzeCompetitors(stores);
       } else {
-        getNicheKeywords(niche).then(keywords => {
-          generateUniqueDomainList(niche, keywords).then(domainList => {
-            const uniqueStores = domainList.splice(0, 5);
-            analyzeCompetitors(uniqueStores.map(store => {
-              return {
-                'domain': store
-              }
-            }));
-          });
-        });
+        const keywords = await getNicheKeywords(niche);
+        const domainList = await generateUniqueDomainList(niche, keywords);
+        const uniqueStores = domainList.splice(0, 5);
+        await analyzeCompetitors(uniqueStores.map(store => {
+          return {
+            'domain': store
+          }
+        }));
       }
       //generateOpenAIPatterns(domainList);
     } catch (error) {
@@ -49,12 +46,12 @@ export default function Home() {
     }
   };
 
-  const analyzeCompetitors = (stores: Store[]) => {
+  const analyzeCompetitors = async (stores: Store[]) => {
     setTopStores(stores);
 
     const domainList = extractDomainNames(stores);
-    const patterns = analyzeDomainPatterns(domainList, niche);
-    
+    const patterns = await analyzeDomainPatterns(domainList, niche);
+
     setDomainPatterns(patterns);
 
     // Generate domain recommendations
