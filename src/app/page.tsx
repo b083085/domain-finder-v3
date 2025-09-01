@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { analyzeDomainPatterns, type DomainPatterns } from './utils/domainAnalyzer';
-import { getTopStoresForNiche, extractDomainNames, getNicheKeywords, extractIndustryTermsFromDomains } from './utils/nicheHelper';
+import { getTopStoresForNiche, extractDomainNames, getNicheKeywords, extractIndustryTermsFromDomains, Store } from './utils/nicheHelper';
 import PatternsDisplay from './components/PatternsDisplay';
 import RecommendationsDisplay from './components/RecommendationsDisplay';
 import DomainRecommendations from './components/DomainRecommendations';
 import { generateUniqueDomainList } from './utils/domainGenerator';
 import UnverifiedCompetitorsMessage from './components/UnverifiedCompetitorsMessage';
 import { generateDomainRecommendations } from './utils/domainRecommendations';
+import Loader from './components/Loader';
 
 export default function Home() {
   const [niche, setNiche] = useState('');
@@ -16,7 +17,6 @@ export default function Home() {
   const [topStores, setTopStores] = useState<{ domain: string }[]>([]);
   const [selectedNiche, setSelectedNiche] = useState<string>('');
   const [domainPatterns, setDomainPatterns] = useState<DomainPatterns>();
-  const [noStores, setNoStores] = useState<boolean>(false);
 
 
   const handleAnalyze = () => {
@@ -28,38 +28,16 @@ export default function Home() {
     try {
       const stores = getTopStoresForNiche(niche);
       if (stores && stores.length > 0) {
-        setNoStores(false);
-
-        setTopStores(stores);
-
-        const domainList = extractDomainNames(stores);
-        const patterns = analyzeDomainPatterns(domainList, niche);
-        setDomainPatterns(patterns);
-
-        // Generate domain recommendations
-        generateDomainRecommendations(patterns, niche, []).then(recommendations => {
-          // Handle the recommendations here
-          console.log('Domain recommendations:', recommendations);
-        });
+        analyzeCompetitors(stores);
       } else {
-        setNoStores(true);
-
         getNicheKeywords(niche).then(keywords => {
-          // Generate unique domain list using OpenAI
           generateUniqueDomainList(niche, keywords).then(domainList => {
-            const patterns = analyzeDomainPatterns(domainList, niche);
-            extractIndustryTermsFromDomains(domainList, niche).then(industryTerms => {
-              console.log('Industry terms from generated domains:', industryTerms);
-              patterns.industryTerms = industryTerms;
-              patterns.nicheKeywords = keywords;
-              setDomainPatterns(patterns);
-              
-              // Generate domain recommendations
-              generateDomainRecommendations(patterns, niche, []).then(recommendations => {
-                // Handle the recommendations here
-                console.log('Domain recommendations:', recommendations);
-              });
-            });
+            const uniqueStores = domainList.splice(0, 5);
+            analyzeCompetitors(uniqueStores.map(store => {
+              return {
+                'domain': store
+              }
+            }));
           });
         });
       }
@@ -70,6 +48,21 @@ export default function Home() {
       setIsAnalyzing(false);
     }
   };
+
+  const analyzeCompetitors = (stores: Store[]) => {
+    setTopStores(stores);
+
+    const domainList = extractDomainNames(stores);
+    const patterns = analyzeDomainPatterns(domainList, niche);
+    
+    setDomainPatterns(patterns);
+
+    // Generate domain recommendations
+    generateDomainRecommendations(patterns, niche, []).then(recommendations => {
+      // Handle the recommendations here
+      console.log('Domain recommendations:', recommendations);
+    });
+  }
 
   return (
     <main className="min-h-screen bg-[#1A1A1A] p-8">
@@ -107,11 +100,11 @@ export default function Home() {
               >
                 {isAnalyzing ? 'Analyzing...' : 'Analyze Competitors'}
               </button>
-            </div>;
-            ;            {/* Top E-commerce Stores Section */}
-            {(topStores.length > 0 || noStores) && (
+            </div>
+            {/* Top E-commerce Stores Section */}
+            {topStores.length > 0 && (
               <>
-                {!noStores && (<div className="bg-[#333333] rounded-xl p-6">
+                <div className="bg-[#333333] rounded-xl p-6">
                   <h2 className="text-2xl font-bold text-[#FACC15] mb-4">
                     {`Top Private E-commerce Stores in ${selectedNiche}`}
                   </h2>
@@ -129,19 +122,15 @@ export default function Home() {
                       </li>
                     ))}
                   </ol>
-                </div>)}
-
-                {noStores && (
-                  <UnverifiedCompetitorsMessage niche={selectedNiche} />
-                )}
+                </div>
 
                 {/* Domain Patterns Found Section - Full Width */}
-                {domainPatterns && !noStores && (
+                {domainPatterns && (
                   <PatternsDisplay patterns={domainPatterns} title="Domain Patterns Found" />
                 )}
 
                 {/* Recommendations for Your Domain Section */}
-                {domainPatterns && !noStores && (
+                {domainPatterns && (
                   <RecommendationsDisplay
                     patterns={domainPatterns}
                     niche={selectedNiche}
@@ -154,6 +143,16 @@ export default function Home() {
                   <DomainRecommendations patterns={domainPatterns} niche={selectedNiche} />
                 )}
               </>
+            )}
+            
+            {/* Loading state */}
+            {isAnalyzing && (
+              <div className="bg-[#333333] rounded-xl p-6">
+                <Loader 
+                  message="Analyzing your niche..." 
+                  size="large"
+                />
+              </div>
             )}
           </div>
         </div>
