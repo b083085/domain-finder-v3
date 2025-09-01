@@ -5,6 +5,7 @@ import { analyzeDomainPatterns, type DomainPatterns } from './utils/domainAnalyz
 import { getTopStoresForNiche, extractDomainNames } from './utils/nicheHelper';
 import PatternsDisplay from './components/PatternsDisplay';
 import RecommendationsDisplay from './components/RecommendationsDisplay';
+import DomainRecommendations from './components/DomainRecommendations';
 
 export default function Home() {
   const [niche, setNiche] = useState('');
@@ -13,7 +14,96 @@ export default function Home() {
   const [selectedNiche, setSelectedNiche] = useState<string>('backyard');
   const [domainPatterns, setDomainPatterns] = useState<DomainPatterns>();
 
-  // Function to analyze domain patterns
+  // Function to generate domain recommendations based on patterns
+  const generateDomainRecommendations = async (patterns: DomainPatterns, niche: string, p0: never[]) => {
+    try {
+      // Generate domain suggestions based on patterns
+      const suggestions = generateDomainSuggestions(patterns, niche);
+      
+      // Check availability for each suggestion
+      const availableDomains = await checkDomainAvailability(suggestions);
+      
+      return availableDomains;
+    } catch (error) {
+      console.error('Error generating domain recommendations:', error);
+      return [];
+    }
+  };
+
+  // Function to generate domain suggestions based on patterns
+  const generateDomainSuggestions = (patterns: DomainPatterns, niche: string): string[] => {
+    const suggestions: string[] = [];
+    const nicheKeywords = patterns.nicheKeywords;
+    const industryTerms = patterns.industryTerms;
+    const suffixes = patterns.suffixes;
+    const prefixes = patterns.prefixes;
+
+    // Generate combinations based on patterns
+    if (nicheKeywords.length > 0 && suffixes.length > 0) {
+      // Niche keyword + suffix combinations
+      nicheKeywords.slice(0, 3).forEach(keyword => {
+        suffixes.slice(0, 2).forEach(suffix => {
+          suggestions.push(`${keyword}${suffix}.com`);
+        });
+      });
+    }
+
+    if (industryTerms.length > 0 && suffixes.length > 0) {
+      // Industry term + suffix combinations
+      industryTerms.slice(0, 3).forEach(term => {
+        suffixes.slice(0, 2).forEach(suffix => {
+          suggestions.push(`${term}${suffix}.com`);
+        });
+      });
+    }
+
+    if (prefixes.length > 0 && nicheKeywords.length > 0) {
+      // Prefix + niche keyword combinations
+      prefixes.slice(0, 2).forEach(prefix => {
+        nicheKeywords.slice(0, 3).forEach(keyword => {
+          suggestions.push(`${prefix}${keyword}.com`);
+        });
+      });
+    }
+
+    // Add some generic combinations
+    if (nicheKeywords.length > 0) {
+      suggestions.push(`${nicheKeywords[0]}central.com`);
+      suggestions.push(`${nicheKeywords[0]}hub.com`);
+      suggestions.push(`${nicheKeywords[0]}pro.com`);
+    }
+
+    return suggestions.slice(0, 10); // Limit to 10 suggestions
+  };
+
+  // Function to check domain availability via Name.com API
+  const checkDomainAvailability = async (domains: string[]): Promise<Array<{domain: string, available: boolean, price?: string}>> => {
+    const results = [];
+    
+    for (const domain of domains) {
+      try {
+        // Note: You'll need to replace this with actual Name.com API integration
+        // For now, this is a mock implementation
+        const isAvailable = Math.random() > 0.7; // Mock availability check
+        const price = isAvailable ? '$12.99' : undefined;
+        
+        results.push({
+          domain,
+          available: isAvailable,
+          price
+        });
+      } catch (error) {
+        console.error(`Error checking ${domain}:`, error);
+        results.push({
+          domain,
+          available: false
+        });
+      }
+    }
+    
+    return results;
+  };
+
   const handleAnalyze = () => {
     if (!niche.trim()) return;
 
@@ -28,7 +118,13 @@ export default function Home() {
       const patterns = analyzeDomainPatterns(domainList, niche);
       setDomainPatterns(patterns);
       
-      generateOpenAIPatterns(domainList);
+      // Generate domain recommendations
+      generateDomainRecommendations(patterns, niche, []).then(recommendations => {
+        // Handle the recommendations here
+        console.log('Domain recommendations:', recommendations);
+      });
+      
+      //generateOpenAIPatterns(domainList);
     } catch (error) {
       console.error('Error analyzing competitors:', error);
     } finally {
@@ -156,42 +252,9 @@ export default function Home() {
                 )}
 
                 {/* Our Recommendation Section */}
-                <div className="bg-[#333333] border-2 border-[#FACC15] rounded-xl p-6">
-                  <h3 className="text-xl font-semibold text-[#FACC15] mb-4">Our Recommendation:</h3>
-                  <div className="bg-[#1A1A1A] border border-[#FACC15] rounded-lg p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-3xl font-bold text-white mb-2">porchcentral.com</div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-5 h-5 bg-green-500 rounded-full"></div>
-                          <span className="text-green-400 font-medium">Available</span>
-                        </div>
-                        <div className="text-sm text-[#A0A0A0] italic">
-                          Selected because: optimal length
-                        </div>
-                      </div>
-                      <div className="text-3xl font-bold text-white">$12.99</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Other Options Section */}
-                <div className="bg-[#333333] rounded-xl p-6">
-                  <h3 className="text-xl font-semibold text-[#FACC15] mb-4">Other options:</h3>
-                  <div className="space-y-3">
-                    {otherOptions.map((option, index) => (
-                      <div key={index} className="flex justify-between items-center p-4 bg-[#1A1A1A] border border-[#333333] rounded-lg">
-                        <span className="text-lg font-medium text-white">{option}</span>
-                        <span className="text-lg font-bold text-white">$12.99</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-center mt-6">
-                    <button className="px-6 py-3 bg-[#eab308] text-black font-semibold rounded-lg hover:bg-[#fbbf24]">
-                      + Generate 5 More Options
-                    </button>
-                  </div>
-                </div>
+                {domainPatterns && (
+                  <DomainRecommendations patterns={domainPatterns} niche={selectedNiche} />
+                )}
               </>
             )}
           </div>
