@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       domain,
       available: data.results?.[0]?.purchasable || false,
-      price: data.results?.[0]?.purchasePrice || '$12.99'
+      price: data.results?.[0]?.purchasePrice || 12.99
     });
   } catch (error) {
     console.error('Name.com API error:', error);

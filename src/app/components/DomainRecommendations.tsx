@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DomainPatterns } from '../utils/domainAnalyzer';
 import { generateDomainRecommendations, DomainRecommendation } from '../utils/domainRecommendations';
 
@@ -13,27 +13,31 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use ref to store patterns to avoid dependency issues
+  const patternsRef = useRef(patterns);
+  patternsRef.current = patterns;
 
   // Memoize the fetch function to prevent unnecessary re-renders
   const fetchDomainRecommendations = useCallback(async () => {
-    if (!patterns && !niche) return;
+    if (!patternsRef.current && !niche) return;
     
     setIsLoading(true);
     setError(null);
     
     try {
-      const recommendations = await generateDomainRecommendations(patterns, niche, []);
+      const recommendations = await generateDomainRecommendations(patternsRef.current, niche, []);
       setRecommendations(recommendations);
-      setOtherOptions(recommendations.slice(1, 6));
+      setOtherOptions(recommendations.slice(1, 6) ?? []);
     } catch (err) {
       console.error('Error generating recommendations:', err);
       setError('Failed to generate recommendations');
     } finally {
       setIsLoading(false);
     }
-  }, [patterns, niche]);
+  }, [niche]); // Only depend on niche
 
-  // Only run effect when patterns or niche actually change
+  // Only run effect when niche changes
   useEffect(() => {
     fetchDomainRecommendations();
   }, [fetchDomainRecommendations]);
@@ -46,6 +50,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
       const newRecommendations = await generateDomainRecommendations(patterns, niche, otherOptions.map(option => option.domain));
       
       const top5Options = newRecommendations
+        .filter(recommendation => otherOptions.some(opt => opt.domain !== recommendation.domain))
         .sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
         .slice(0, 5);
       
@@ -113,7 +118,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
               </div>
             </div>
             <div className="text-3xl font-bold text-white">
-              {topRecommendation.price || 'N/A'}
+              ${topRecommendation.price || 'N/A'}
             </div>
           </div>
         </div>
@@ -134,7 +139,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-lg font-bold text-white">
-                  {option.price || 'N/A'}
+                  ${option.price || 'N/A'}
                 </span>
               </div>
             </div>

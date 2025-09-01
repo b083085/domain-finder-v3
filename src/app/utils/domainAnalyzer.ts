@@ -1,4 +1,4 @@
-import { businessSuffixes, commonPrefixes } from "../niches";
+import { businessSuffixes, commonPrefixes, genericBusinessTerms } from "../niches";
 
 // Type definitions
 export interface DomainPatterns {
@@ -426,9 +426,13 @@ export const analyzeDomainPatterns = async (domains: string[], niche: string): P
   const allMeaningfulWords: string[] = [];
   const nicheRelatedWords = extractNicheKeywords(niche);
 
+  // Analyze suffixes and prefixes
+  const suffixCounter: Record<string, number> = {};
+  const prefixCounter: Record<string, number> = {};
+
   console.log(domains);
 
-  for (const domain of domains){
+  for (const domain of domains) {
     const name = domain.replace('.com', '').toLowerCase();
     totalLength += name.length;
     lengths.push(name.length);
@@ -457,10 +461,21 @@ export const analyzeDomainPatterns = async (domains: string[], niche: string): P
     if (structure) {
       patterns.structurePatterns.push(structure);
     }
+
+    if (words.length > 1) {
+      const lastWord = words[words.length - 1];
+      if (businessSuffixes.includes(lastWord)) {
+        suffixCounter[lastWord] = (suffixCounter[lastWord] || 0) + 1;
+      }
+
+      const firstWord = words[0];
+      if (commonPrefixes.includes(firstWord)) {
+        prefixCounter[firstWord] = (prefixCounter[firstWord] || 0) + 1;
+      }
+    }
   }
 
   // Calculate statistics
-  console.log(totalLength);
   patterns.averageLength = domains.length > 0 ? Math.floor(totalLength / domains.length) : 0;
   patterns.lengthRange.min = lengths.length > 0 ? Math.min(...lengths) : 0;
   patterns.lengthRange.max = lengths.length > 0 ? Math.max(...lengths) : 0;
@@ -477,7 +492,9 @@ export const analyzeDomainPatterns = async (domains: string[], niche: string): P
   patterns.commonWords = Object.entries(wordFrequency)
     .filter(([word, count]) =>
       count >= 2 &&
-      !patterns.industryTerms.includes(word)
+      !patterns.industryTerms.includes(word) &&
+      !genericBusinessTerms.includes(word) &&
+      !businessSuffixes.includes(word)
     )
     .slice(0, 5)
     .map(([word]) => word);
@@ -497,27 +514,6 @@ export const analyzeDomainPatterns = async (domains: string[], niche: string): P
 
   patterns.structurePatterns = [...new Set(patterns.structurePatterns)].slice(0, 3);
 
-  // Analyze suffixes and prefixes
-  const suffixCounter: Record<string, number> = {};
-  const prefixCounter: Record<string, number> = {};
-
-  domains.forEach(async (domain) => {
-    const name = domain.replace('.com', '').toLowerCase();
-    const words = await splitDomainIntoWords(name);
-
-    if (words.length > 1) {
-      const lastWord = words[words.length - 1];
-      if (businessSuffixes.includes(lastWord)) {
-        suffixCounter[lastWord] = (suffixCounter[lastWord] || 0) + 1;
-      }
-
-      const firstWord = words[0];
-      if (commonPrefixes.includes(firstWord)) {
-        prefixCounter[firstWord] = (prefixCounter[firstWord] || 0) + 1;
-      }
-    }
-  });
-
   patterns.suffixes = Object.entries(suffixCounter)
     .filter(([, count]) => count >= 2)
     .slice(0, 3)
@@ -531,7 +527,7 @@ export const analyzeDomainPatterns = async (domains: string[], niche: string): P
   // Determine brand types
   const brandTypesCounter: Record<string, number> = {};
 
-  domains.forEach(async (domain) => {
+  for (const domain of domains){
     const name = domain.replace('.com', '').toLowerCase();
     const words = await splitDomainIntoWords(name);
 
@@ -546,12 +542,14 @@ export const analyzeDomainPatterns = async (domains: string[], niche: string): P
     if (words.length === 1 && !allMeaningfulWords.includes(words[0])) {
       brandTypesCounter['brandable'] = (brandTypesCounter['brandable'] || 0) + 1;
     }
-  });
+  }
 
   patterns.brandTypes = Object.entries(brandTypesCounter)
     .filter(([, count]) => count >= 2)
     .slice(0, 3)
     .map(([btype]) => btype);
+
+  console.log(patterns);
 
   return patterns;
 };

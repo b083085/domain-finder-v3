@@ -1,3 +1,4 @@
+import { businessSuffixes, commonPrefixes, genericBusinessTerms } from '../niches';
 import { DomainPatterns } from './domainAnalyzer';
 
 export interface DomainRecommendation {
@@ -167,7 +168,7 @@ export const checkDomainAvailability = async (domains: string[], niche: string, 
                     results.push({
                         domain,
                         available: data.available || false,
-                        price: `$${data.price}` || '$12.99',
+                        price: data.price || 12.99,
                         reason: generateReason(domain, domains[0]),
                         qualityScore: qualityScore
                     });
@@ -221,18 +222,30 @@ const generateReason = (domain: string, topDomain: string): string => {
  */
 export const generateUniqueDomainSuggestions = async (patterns: DomainPatterns, niche: string, domains: string[]): Promise<string[]> => {
     try {
-        const prompt = `Generate exactly 15 unique, creative domain names for a ${niche} business based on these patterns:
+        const prompt = `Generate exactly 20 unique poetic and descriptive domain names for a ${niche} business based on these patterns:
 
 Niche Keywords: ${patterns.nicheKeywords.join(', ')}
 Industry Terms: ${patterns.industryTerms.join(', ')}
-Common Suffixes: ${patterns.suffixes.join(', ')}
-Common Prefixes: ${patterns.prefixes.join(', ')}
+Common Suffixes: ${businessSuffixes.join(', ')}
+Common Prefixes: ${commonPrefixes.join(', ')}
+
+These are the examples of poetic domain names:
+- silverecho.com
+- whisperingdawn.com
+- moonlightpath.com
+
+
+These are the examples of descriptive domain names:
+- smarthomesolutions.com
+- quickmealprep.com
+- greenenergysystems.com
+
 
 Requirements:
-- Generate exactly 15 unique domain names
+- Do not use the examples provided for poetic and descriptive domain names
 - Use .com extension
 - Combine niche keywords, industry terms, prefixes, and suffixes creatively
-- Avoid repetitive patterns
+- Avoid repetitive combination of niche keywords, industry terms, prefixes, and suffixes
 - Avoid using the same keyword multiple times
 - Make them brandable and memorable
 - Make them descriptive and clear
@@ -241,8 +254,9 @@ Requirements:
 - Keep domains between 7-20 characters (excluding .com)
 - lowercase the domain names
 - Avoid alliterations   
-
-Excludes these domains: ${domains.join(', ')}
+- Include 3 word domain names
+- Exclude Prefixes: ${genericBusinessTerms.join(', ')}
+- Excludes these domains: ${domains.join(', ')}
 
 Return ONLY a JSON array of domain names, no code fences, no markdown, no explanations or no additional text:
 ["domain1.com", "domain2.com", ...]`;
@@ -264,7 +278,7 @@ Return ONLY a JSON array of domain names, no code fences, no markdown, no explan
 
         const data = await response.json();
         const aiResponse = data.analysis;
-
+        console.log(aiResponse);
         // Parse the JSON response
         let suggestions: string[] = [];
         try {
@@ -300,9 +314,19 @@ export const generateDomainRecommendations = async (patterns: DomainPatterns, ni
     try {
         const suggestions = await generateUniqueDomainSuggestions(patterns, niche, excludeDomains);
 
-        const availableDomains = await checkDomainAvailability(suggestions, niche, patterns);
+        let availableDomains = await checkDomainAvailability(suggestions, niche, patterns);
 
         // Sort by quality score first, then availability
+        availableDomains = availableDomains.filter(domain => {
+            if (typeof domain.price === 'number') {
+                return domain.price < 100;
+            }
+            if (typeof domain.price === 'string') {
+                const priceNum = parseFloat(domain.price.replace(/[^0-9.]/g, ''));
+                return !isNaN(priceNum) && priceNum < 100;
+            }
+            return false;
+        });
         const sortedAvailableDomains = availableDomains.sort((a, b) => {
             const scoreA = a.qualityScore || 0;
             const scoreB = b.qualityScore || 0;

@@ -28,6 +28,16 @@ export const commonPrefixes = [
     'pure', 
     'prime'];
 
+export const genericBusinessTerms = [
+    'the', 
+    'all', 
+    'my', 
+    'get', 
+    'new', 
+    'best', 
+    'top'
+];
+
 export const niche_variations = {
     'horseriding': 'horse riding',
     'hometheater': 'home theater',
