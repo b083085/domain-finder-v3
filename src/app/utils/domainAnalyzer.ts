@@ -408,6 +408,7 @@ Requirements:
 - Do not include repetitive word
 - Do not include the plural word
 - Do not include word that contains from other word
+- Do not include brand name
 - Do not include slang word
 - Use lowercase for all terms
 
