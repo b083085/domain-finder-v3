@@ -205,6 +205,91 @@ export const countWordFrequency = (words: string[]): Record<string, number> => {
 };
 
 /**
+ * Filter words by niche relevance using OpenAI
+ */
+export const filterWordsByNicheWithAI = async (words: string[], niche: string): Promise<string[]> => {
+  try {
+    const prompt = `From the following list of words, return only the words that are relevant to the "${niche}" niche.
+ 
+Words: ${JSON.stringify(words)}
+ 
+Requirements:
+- Only include words that are clearly relevant to the "${niche}" business niche
+- Exclude generic business terms (e.g., "store", "shop", "online", "company", "direct", "mart", "depot", "outlet", "hub", "zone", "surplus", "pro", "guys")
+- Exclude common articles or filler terms ("the", "all", "my", "get", "new", "best", "top")
+- Use lowercase for all words
+- Return ONLY a JSON array of relevant words, no markdown, no explanations
+ 
+Examples:
+- Niche "fireplace": keep ["fire", "flame", "hearth", "chimney"], drop ["store", "company", "direct"]
+- Niche "horse riding": keep ["horse", "equine", "saddle", "riding"], drop ["shop", "mart"]
+ 
+Return ONLY a JSON array:
+["word1", "word2"]`;
+
+    const response = await fetch('/api/openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiResponse = data.analysis;
+
+    let relevant: string[] = [];
+    try {
+      relevant = JSON.parse(aiResponse);
+    } catch {
+      return getBasicNicheFilteredWords(words, niche);
+    }
+
+    const valid = Array.isArray(relevant)
+      ? relevant
+        .filter(w => typeof w === 'string' && w.trim().length > 0)
+        .map(w => w.toLowerCase().trim())
+      : [];
+
+    return valid.length > 0 ? valid : getBasicNicheFilteredWords(words, niche);
+  } catch (err) {
+    console.error('Error filtering words by niche with AI:', err);
+    return getBasicNicheFilteredWords(words, niche);
+  }
+};
+
+/**
+ * Basic fallback for filtering words by niche relevance
+ */
+const getBasicNicheFilteredWords = (words: string[], niche: string): string[] => {
+  const generic = new Set(['the', 'all', 'my', 'get', 'new', 'best', 'top']);
+  const business = new Set(['direct', 'company', 'guys', 'pro', 'supply', 'depot',
+    'mart', 'store', 'shop', 'hub', 'zone', 'outlet', 'surplus']);
+
+  const nicheKeywords = new Set(extractNicheKeywords(niche).map(k => k.toLowerCase()));
+
+  const filtered = words.filter(w =>
+    w.length >= 3 &&
+    !generic.has(w) &&
+    !business.has(w) &&
+    (nicheKeywords.size === 0 || nicheKeywords.has(w))
+  );
+
+  // If too strict and nothing remains, relax to just removing generic/business terms
+  if (filtered.length === 0) {
+    return words.filter(w =>
+      w.length >= 3 &&
+      !generic.has(w) &&
+      !business.has(w)
+    );
+  }
+
+  return filtered;
+};
+
+/**
  * Get compound words from array of words using OpenAI
  */
 export const getCompoundWordsWithAI = async (words: string[]): Promise<string[]> => {
@@ -312,12 +397,18 @@ Words to analyze: ${words.join(', ')}
 
 Requirements:
 - Identify exactly 10 industry-specific terms
+- Use only real, meaningful words (no made-up nonsense) and recognized in dictionaries
 - Focus on terms that are most relevant to the ${niche} industry
 - Prioritize terms that are commonly used in business and marketing for this niche
 - Avoid generic business terms like "store", "shop", "online", "web"
 - Avoid common articles and prepositions like "the", "all", "my", "get"
 - Focus on product, service, or industry-specific terminology
 - Return terms in order of relevance to the niche
+- Do not include compound word or closed compound word
+- Do not include repetitive word
+- Do not include the plural word
+- Do not include word that contains from other word
+- Do not include slang word
 - Use lowercase for all terms
 
 Consider these aspects for ${niche}:
@@ -420,134 +511,140 @@ export const analyzeDomainPatterns = async (domains: string[], niche: string): P
     brandTypes: []
   };
 
-  let totalLength = 0;
-  const lengths: number[] = [];
-  const allWords: string[] = [];
-  const allMeaningfulWords: string[] = [];
-  const nicheRelatedWords = extractNicheKeywords(niche);
+  try {
+    let totalLength = 0;
+    const lengths: number[] = [];
+    const allWords: string[] = [];
+    const allMeaningfulWords: string[] = [];
+    const nicheRelatedWords = extractNicheKeywords(niche);
 
-  // Analyze suffixes and prefixes
-  const suffixCounter: Record<string, number> = {};
-  const prefixCounter: Record<string, number> = {};
+    // Analyze suffixes and prefixes
+    const suffixCounter: Record<string, number> = {};
+    const prefixCounter: Record<string, number> = {};
 
-  console.log(domains);
+    console.log(domains);
 
-  for (const domain of domains) {
-    const name = domain.replace('.com', '').toLowerCase();
-    totalLength += name.length;
-    lengths.push(name.length);
+    for (const domain of domains) {
+      const name = domain.replace('.com', '').toLowerCase();
+      totalLength += name.length;
+      lengths.push(name.length);
 
-    const words = await splitDomainIntoWords(name);
-    allWords.push(...words);
+      const words = await splitDomainIntoWords(name);
+      const filteredWords = await filterWordsByNicheWithAI(words, niche);
+      console.log(words, filteredWords);
+      allWords.push(...filteredWords);
 
-    const meaningfulWords = words.filter(w => w.length > 2);
-    allMeaningfulWords.push(...meaningfulWords);
+      const meaningfulWords = filteredWords.filter(w => w.length > 2);
+      allMeaningfulWords.push(...meaningfulWords);
 
-    // Track compound words
-    const compoundWords = await getCompoundWordsWithAI(words);
-    allMeaningfulWords.push(...compoundWords);
+      // Track compound words
+      const compoundWords = await getCompoundWordsWithAI(filteredWords);
+      allMeaningfulWords.push(...compoundWords);
 
-    // Count words
-    const wordCount = words.length;
-    patterns.wordCount[wordCount] = (patterns.wordCount[wordCount] || 0) + 1;
+      // Count words
+      const wordCount = filteredWords.length;
+      patterns.wordCount[wordCount] = (patterns.wordCount[wordCount] || 0) + 1;
 
-    // Check for numbers
-    if (/\d/.test(name)) {
-      patterns.containsNumbers++;
-    }
-
-    // Analyze structure
-    const structure = analyzeDomainStructureImproved(words);
-    if (structure) {
-      patterns.structurePatterns.push(structure);
-    }
-
-    if (words.length > 1) {
-      const lastWord = words[words.length - 1];
-      if (businessSuffixes.includes(lastWord)) {
-        suffixCounter[lastWord] = (suffixCounter[lastWord] || 0) + 1;
+      // Check for numbers
+      if (/\d/.test(name)) {
+        patterns.containsNumbers++;
       }
 
-      const firstWord = words[0];
-      if (commonPrefixes.includes(firstWord)) {
-        prefixCounter[firstWord] = (prefixCounter[firstWord] || 0) + 1;
+      // Analyze structure
+      const structure = analyzeDomainStructureImproved(filteredWords);
+      if (structure) {
+        patterns.structurePatterns.push(structure);
+      }
+
+      if (filteredWords.length > 1) {
+        const lastWord = filteredWords[filteredWords.length - 1];
+        if (businessSuffixes.includes(lastWord)) {
+          suffixCounter[lastWord] = (suffixCounter[lastWord] || 0) + 1;
+        }
+
+        const firstWord = filteredWords[0];
+        if (commonPrefixes.includes(firstWord)) {
+          prefixCounter[firstWord] = (prefixCounter[firstWord] || 0) + 1;
+        }
       }
     }
+
+    // Calculate statistics
+    patterns.averageLength = domains.length > 0 ? Math.floor(totalLength / domains.length) : 0;
+    patterns.lengthRange.min = lengths.length > 0 ? Math.min(...lengths) : 0;
+    patterns.lengthRange.max = lengths.length > 0 ? Math.max(...lengths) : 0;
+
+    // Find most common meaningful words
+    const wordFrequency = countWordFrequency(allMeaningfulWords);
+
+    // Get top 10 industry terms using AI
+    const allUniqueWords = [...new Set(allMeaningfulWords)];
+    patterns.industryTerms = await getIndustryTermsWithAI(allUniqueWords, niche);
+    console.log('Industry terms identified by AI:', patterns.industryTerms);
+
+    // Common words (excluding industry terms)
+    patterns.commonWords = Object.entries(wordFrequency)
+      .filter(([word, count]) =>
+        count >= 2 &&
+        !patterns.industryTerms.includes(word) &&
+        !genericBusinessTerms.includes(word) &&
+        !businessSuffixes.includes(word)
+      )
+      .slice(0, 5)
+      .map(([word]) => word);
+
+    // Niche-specific keywords
+    patterns.nicheKeywords = [...new Set(allMeaningfulWords.filter(word =>
+      nicheRelatedWords.includes(word)
+    ))];
+
+    // Most common word count - now properly calculated after all domains are processed
+    const maxKey = Object.entries(patterns.wordCount).reduce((a, b) =>
+      a[1] >= b[1] ? a : b
+    )[0];
+    patterns.mostCommonWordCount = Number(maxKey);
+    console.log('Word count distribution:', patterns.wordCount);
+    console.log('Most common word count:', patterns.mostCommonWordCount);
+
+    patterns.structurePatterns = [...new Set(patterns.structurePatterns)].slice(0, 3);
+
+    patterns.suffixes = Object.entries(suffixCounter)
+      .filter(([, count]) => count >= 2)
+      .slice(0, 3)
+      .map(([suffix]) => suffix);
+
+    patterns.prefixes = Object.entries(prefixCounter)
+      .filter(([, count]) => count >= 2)
+      .slice(0, 3)
+      .map(([prefix]) => prefix);
+
+    // Determine brand types
+    const brandTypesCounter: Record<string, number> = {};
+
+    for (const domain of domains) {
+      const name = domain.replace('.com', '').toLowerCase();
+      const words = await splitDomainIntoWords(name);
+
+      if (words.some(term => patterns.industryTerms.includes(term))) {
+        brandTypesCounter['industry-specific'] = (brandTypesCounter['industry-specific'] || 0) + 1;
+      }
+
+      if (words.length >= 2) {
+        brandTypesCounter['compound'] = (brandTypesCounter['compound'] || 0) + 1;
+      }
+
+      if (words.length === 1 && !allMeaningfulWords.includes(words[0])) {
+        brandTypesCounter['brandable'] = (brandTypesCounter['brandable'] || 0) + 1;
+      }
+    }
+
+    patterns.brandTypes = Object.entries(brandTypesCounter)
+      .filter(([, count]) => count >= 2)
+      .slice(0, 3)
+      .map(([btype]) => btype);
+  } catch (e) {
+    console.error(e);
   }
-
-  // Calculate statistics
-  patterns.averageLength = domains.length > 0 ? Math.floor(totalLength / domains.length) : 0;
-  patterns.lengthRange.min = lengths.length > 0 ? Math.min(...lengths) : 0;
-  patterns.lengthRange.max = lengths.length > 0 ? Math.max(...lengths) : 0;
-
-  // Find most common meaningful words
-  const wordFrequency = countWordFrequency(allMeaningfulWords);
-
-  // Get top 10 industry terms using AI
-  const allUniqueWords = [...new Set(allMeaningfulWords)];
-  patterns.industryTerms = await getIndustryTermsWithAI(allUniqueWords, niche);
-  console.log('Industry terms identified by AI:', patterns.industryTerms);
-
-  // Common words (excluding industry terms)
-  patterns.commonWords = Object.entries(wordFrequency)
-    .filter(([word, count]) =>
-      count >= 2 &&
-      !patterns.industryTerms.includes(word) &&
-      !genericBusinessTerms.includes(word) &&
-      !businessSuffixes.includes(word)
-    )
-    .slice(0, 5)
-    .map(([word]) => word);
-
-  // Niche-specific keywords
-  patterns.nicheKeywords = [...new Set(allMeaningfulWords.filter(word =>
-    nicheRelatedWords.includes(word)
-  ))];
-
-  // Most common word count - now properly calculated after all domains are processed
-  const maxKey = Object.entries(patterns.wordCount).reduce((a, b) =>
-    a[1] >= b[1] ? a : b
-  )[0];
-  patterns.mostCommonWordCount = Number(maxKey);
-  console.log('Word count distribution:', patterns.wordCount);
-  console.log('Most common word count:', patterns.mostCommonWordCount);
-
-  patterns.structurePatterns = [...new Set(patterns.structurePatterns)].slice(0, 3);
-
-  patterns.suffixes = Object.entries(suffixCounter)
-    .filter(([, count]) => count >= 2)
-    .slice(0, 3)
-    .map(([suffix]) => suffix);
-
-  patterns.prefixes = Object.entries(prefixCounter)
-    .filter(([, count]) => count >= 2)
-    .slice(0, 3)
-    .map(([prefix]) => prefix);
-
-  // Determine brand types
-  const brandTypesCounter: Record<string, number> = {};
-
-  for (const domain of domains){
-    const name = domain.replace('.com', '').toLowerCase();
-    const words = await splitDomainIntoWords(name);
-
-    if (words.some(term => patterns.industryTerms.includes(term))) {
-      brandTypesCounter['industry-specific'] = (brandTypesCounter['industry-specific'] || 0) + 1;
-    }
-
-    if (words.length >= 2) {
-      brandTypesCounter['compound'] = (brandTypesCounter['compound'] || 0) + 1;
-    }
-
-    if (words.length === 1 && !allMeaningfulWords.includes(words[0])) {
-      brandTypesCounter['brandable'] = (brandTypesCounter['brandable'] || 0) + 1;
-    }
-  }
-
-  patterns.brandTypes = Object.entries(brandTypesCounter)
-    .filter(([, count]) => count >= 2)
-    .slice(0, 3)
-    .map(([btype]) => btype);
 
   console.log(patterns);
 

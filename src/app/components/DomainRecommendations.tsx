@@ -36,7 +36,7 @@ const DomainRecommendations: React.FC<DomainRecommendationsProps> = ({ patterns,
   // Only run effect when niche changes
   useEffect(() => {
     fetchDomainRecommendations();
-  }, [niche, patterns]);
+  }, [patterns]);
 
   // Function to generate more domain options
   const handleGenerateMoreOptions = async () => {

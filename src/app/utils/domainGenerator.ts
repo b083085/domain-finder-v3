@@ -10,29 +10,26 @@ export interface GeneratedDomain {
  */
 export const generateUniqueDomainList = async (niche: string, nicheKeywords: string[]): Promise<string[]> => {
   try {
-    const prompt = `Generate exactly 20 unique, creative domain names for a ${niche} business that are:
+    const prompt = `
+    You are a domain naming assistant.
+    Your task is to generate exactly 20 unique domain names ideas:
 
-Niche Keywords: ${nicheKeywords.join(', ')}
+Niche:${niche}
+Relevant Keywords: ${nicheKeywords.join(', ')}
 
-Requirements:
-- Generate exactly 20 unique domain names
+Task:  
+- Generate 20 unique, descriptive, 2 or 3 word domain names.  
+- Each domain name must use words related to the given niche and keywords.  
+- Use only real, meaningful words (no made-up nonsense).  
+- Must be easy to pronounce, brandable, and memorable.  
+- Must be poetic domain names or descriptive domain names
+- Avoid generic filler words like "best", "pro", "online", "world".  
 - Use .com extension
-- Avoid repetitive patterns
-- Avoid using the same keyword multiple times
-- Make them brandable and memorable
-- Make them descriptive and clear
-- Ensure they're relevant to the ${niche} industry
-- Don't include numbers unless absolutely necessary
-- Keep domains between 7-20 characters (excluding .com)
 - lowercase the domain names
-- Avoid alliterations
-
-Consider these aspects for ${niche}:
-- Industry-specific terminology
-- Common business terms in ${niche}
-- Descriptive and clear naming
+- Keep domain names between 7-20 characters (excluding .com)
+- Don't include numbers unless absolutely necessary 
+- Avoid using the same keyword multiple times
 - Modern and contemporary feel
-- Potential for brand recognition
 
 Return ONLY a JSON array of domain names with .com extension, no code fences, no markdown, no explanations or additional text:
 ["domain1.com", "domain2.com", ...]`;

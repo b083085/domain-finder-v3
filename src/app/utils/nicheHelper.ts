@@ -72,22 +72,13 @@ export const getNicheKeywords = async (niche: string): Promise<string[]> => {
   try {
     const prompt = `Generate exactly 10 relevant keywords for the "${niche}" niche that are:
 
-Requirements:
-- Generate exactly 10 keywords
-- Each keyword must be a full word (not partial words or abbreviations)
-- Keywords should be relevant to the ${niche} industry
-- Keywords should be commonly used in business and marketing for this niche
-- Keywords should be single words or short phrases (max 3 words)
-- Avoid overly generic terms
-- Focus on industry-specific terminology
-- Make them actionable and useful for domain naming
-
-Consider these aspects for ${niche}:
-- Industry-specific terminology
-- Common business terms in ${niche}
-- Product or service related terms
-- Customer behavior and needs
-- Market trends and popular terms
+Rules:  
+- Only use real dictionary words (no made-up terms).  
+- All keywords must be directly relevant to the niche.  
+- Use single words or short, meaningful phrases (max 2 words).  
+- Focus on descriptive, brandable, and SEO-friendly keywords.  
+- Avoid generic filler words like "best", "cheap", "online".  
+- Output only the keyword list, no explanations. 
 
 Return ONLY a JSON array of lower case keywords, no code fences, no markdown, no explanations or additional text:
 ["keyword1", "keyword2", ...]`;

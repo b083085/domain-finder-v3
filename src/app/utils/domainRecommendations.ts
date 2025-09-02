@@ -18,7 +18,7 @@ export const generateDomainSuggestions = (patterns: DomainPatterns): string[] =>
     const industryTerms = patterns.industryTerms;
     const suffixes = patterns.suffixes;
     const prefixes = patterns.prefixes;
-    
+
     // Generate combinations based on patterns
     if (nicheKeywords.length > 0 && suffixes.length > 0) {
         // Niche keyword + suffix combinations
@@ -222,20 +222,25 @@ const generateReason = (domain: string, topDomain: string): string => {
  */
 export const generateUniqueDomainSuggestions = async (patterns: DomainPatterns, niche: string, domains: string[]): Promise<string[]> => {
     try {
-        const prompt = `Generate exactly 20 unique poetic and descriptive domain names for a ${niche} business based on these patterns:
+        const prompt = `
+        You are a domain naming assistant.
+        Your task is to generate exactly 40 unique domain names ideas:
 
-Niche Keywords: ${patterns.nicheKeywords.join(', ')}
-Industry Terms: ${patterns.industryTerms.join(', ')}
-Common Suffixes: ${businessSuffixes.join(', ')}
-Common Prefixes: ${commonPrefixes.join(', ')}
+Niche: ${niche}
+Relevant keywords: ${patterns.nicheKeywords.join(', ')}
+Industry terms: ${patterns.industryTerms.join(', ')}
+Common suffixes: ${businessSuffixes.join(', ')}
+Common prefixes: ${commonPrefixes.join(', ')}
+Brand Types: ${patterns.brandTypes.join(', ')}
+Do not include prefixes: ${genericBusinessTerms.join(', ')}
+Do not include domain names: ${domains.join(', ')}
 
-These are the examples of poetic domain names:
+Examples of poetic domain names:
 - silverecho.com
 - whisperingdawn.com
 - moonlightpath.com
 
-
-These are the examples of descriptive domain names:
+Examples of descriptive domain names:
 - smarthomesolutions.com
 - quickmealprep.com
 - greenenergysystems.com
@@ -244,19 +249,20 @@ These are the examples of descriptive domain names:
 Requirements:
 - Do not use the examples provided for poetic and descriptive domain names
 - Use .com extension
-- Combine niche keywords, industry terms, prefixes, and suffixes creatively
-- Avoid repetitive combination of niche keywords, industry terms, prefixes, and suffixes
+- Must be poetic or descriptive domain names
+- Must be easy to read, pronounce, brandable, and memorable
+- Combine relevant keywords, industry terms, prefixes, and suffixes creatively
+- Avoid repetitive combination of relevant keywords, industry terms, prefixes, and suffixes
 - Avoid using the same keyword multiple times
-- Make them brandable and memorable
-- Make them descriptive and clear
+- Avoid generic filler words like "best", "pro", "online", "world". 
 - Ensure they're relevant to the ${niche} industry
 - Don't include numbers unless absolutely necessary
-- Keep domains between 7-20 characters (excluding .com)
+- Keep domains between ${patterns.lengthRange.min} - ${patterns.lengthRange.max} characters (excluding .com)
 - lowercase the domain names
-- Avoid alliterations   
-- Include 3 word domain names
-- Exclude Prefixes: ${genericBusinessTerms.join(', ')}
-- Excludes these domains: ${domains.join(', ')}
+- Use only real, meaningful words (no made-up nonsense).  
+- Include 3-word domain names
+- Do not use suffixes like "depot", "store", "mart"
+- Do not use slang word
 
 Return ONLY a JSON array of domain names, no code fences, no markdown, no explanations or no additional text:
 ["domain1.com", "domain2.com", ...]`;
@@ -312,31 +318,42 @@ Return ONLY a JSON array of domain names, no code fences, no markdown, no explan
  */
 export const generateDomainRecommendations = async (patterns: DomainPatterns, niche: string, excludeDomains: string[]): Promise<DomainRecommendation[]> => {
     try {
-        const suggestions = await generateUniqueDomainSuggestions(patterns, niche, excludeDomains);
+        let notEnoughAvailableDomains = true;
+        let sortedAvailableDomains = [];
+        do {
 
-        let availableDomains = await checkDomainAvailability(suggestions, niche, patterns);
+            const suggestions = await generateUniqueDomainSuggestions(patterns, niche, excludeDomains);
 
-        // Sort by quality score first, then availability
-        availableDomains = availableDomains.filter(domain => {
-            if (typeof domain.price === 'number') {
-                return domain.price < 100;
+            let availableDomains = await checkDomainAvailability(suggestions, niche, patterns);
+
+            // Sort by quality score first, then availability
+            availableDomains = availableDomains.filter(domain => {
+                if (typeof domain.price === 'number') {
+                    return domain.price < 100;
+                }
+                if (typeof domain.price === 'string') {
+                    const priceNum = parseFloat(domain.price.replace(/[^0-9.]/g, ''));
+                    return !isNaN(priceNum) && priceNum < 100;
+                }
+                return false;
+            });
+            sortedAvailableDomains = availableDomains.sort((a, b) => {
+                const scoreA = a.qualityScore || 0;
+                const scoreB = b.qualityScore || 0;
+
+                if (scoreB !== scoreA) return scoreB - scoreA; // Higher score first
+                if (a.available && !b.available) return -1;
+                if (!a.available && b.available) return 1;
+                return 0;
+            });
+            if(sortedAvailableDomains.length > 5){
+                notEnoughAvailableDomains = false;
+                console.log('Available Domains:', sortedAvailableDomains);
+            }else{
+                console.log('retry generate domain recommendations');
             }
-            if (typeof domain.price === 'string') {
-                const priceNum = parseFloat(domain.price.replace(/[^0-9.]/g, ''));
-                return !isNaN(priceNum) && priceNum < 100;
-            }
-            return false;
-        });
-        const sortedAvailableDomains = availableDomains.sort((a, b) => {
-            const scoreA = a.qualityScore || 0;
-            const scoreB = b.qualityScore || 0;
+        } while (notEnoughAvailableDomains);
 
-            if (scoreB !== scoreA) return scoreB - scoreA; // Higher score first
-            if (a.available && !b.available) return -1;
-            if (!a.available && b.available) return 1;
-            return 0;
-        });
-        console.log('Available Domains:',sortedAvailableDomains);
         return sortedAvailableDomains;
     } catch (error) {
         console.error('Error generating domain recommendations:', error);
